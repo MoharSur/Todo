@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'todo_model.dart';
 void main(){
+  
   runApp(MaterialApp(
     debugShowCheckedModeBanner: false,
     home: Todo() ,
@@ -8,14 +10,24 @@ void main(){
 }
 
 class Todo extends StatefulWidget {
+  
   @override
   _TodoState createState() => _TodoState();
 }
 
 class _TodoState extends State<Todo> {
+  
   List<TodoModel> todos = [];
   TextEditingController textController = TextEditingController();  
   
+  Future<List<String>?> getTodos() async {
+     SharedPreferences prefs =  await SharedPreferences.getInstance();
+     List<String>? todos = prefs.getStringList('todos');
+     if(todos == null){
+       prefs.setStringList('todos', []);
+     }
+     return todos;
+  }
   void showDialogIsTodoCompleted(int index){
     showDialog(
      context: context,
@@ -32,7 +44,9 @@ class _TodoState extends State<Todo> {
           TextButton(
           onPressed: () {
              setState(() {
+               // Remove the Todo
                todos.remove(todos[index]);
+               updatePrefs();
              });
             Navigator.pop(context, true);
           },
@@ -62,15 +76,38 @@ class _TodoState extends State<Todo> {
           TextButton(
           onPressed: () {
              setState(() {
-               // Adds a Todo
-               todos.add(TodoModel(textController.text));
-               textController.text = '';
+                // Adds a Todo
+                todos.add(TodoModel(textController.text));
+                // Update The Saved Data
+                updatePrefs();
+                textController.text = '';
              });
             Navigator.of(context).pop();
           },
           child: const Text('Add'))
       ],
     ));
+  }
+  void updatePrefs(){
+    List<String> todosTexts = [];
+        for(int i = 0; i < todos.length; i++){
+          todosTexts.add(todos[i].text);
+        }
+        SharedPreferences.getInstance().then((prefs){
+        prefs.setStringList('todos', todosTexts);
+      });  
+  }
+  @override
+  void initState() {
+    super.initState();
+    getTodos().then((values){
+      if(values != null){
+       for(int i = 0; i < values.length; i++){
+          todos.add(TodoModel(values[i]));
+       }
+       setState(() { });
+     }
+    });
   }
   @override
   Widget build(BuildContext context) {
@@ -92,6 +129,7 @@ class _TodoState extends State<Todo> {
         floatingActionButton: FloatingActionButton(
           onPressed: () {
             showDialogToInputTodo();
+           
           },
           child: const Icon(Icons.add),
       ),
@@ -120,9 +158,9 @@ class _TodoState extends State<Todo> {
                      ),
                    ),  
                  ); 
-            },
-          )
-        ),
+            }, 
+           ), 
+          ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           showDialogToInputTodo();
